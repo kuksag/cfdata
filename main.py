@@ -4,41 +4,40 @@ import matplotlib.pyplot as plt
 import requests
 import time
 
+api = "http://codeforces.com/api/"
+profile = {}
+last_call = 0
+verdicts = {}
+tags = {}
+languages = {}
+attempted = []
+solved = []
+
+
+def sort_dict(data):
+    temp = [[k, v] for k, v in data.items()]
+    temp.sort(key=lambda i: -i[1])
+    return temp
+
 
 def call(link):
     global last_call
     while time.time() - last_call < 0.25:
         time.sleep(0.1)
     last_call = time.time()
-    return cur_sess.get(link).json()
+    return requests.Session().get(link).json()
 
 
-def ask_profile():
-    while True:
-        # handle = input()
-        handle = open("data.txt", "r").readline()
-        link = api + "user.info?handles=" + handle
-        response = call(link)
-        if response['status'] == 'OK':
-            break
-        else:
-            print(response['comment'])
-    response = response['result'][0]
-    return response
+def check_handle(handle):
+    link = api + "user.info?handles=" + handle
+    response = call(link)
+    if response['status'] == 'OK':
+        return 'OK'
+    else:
+        return response['comment']
 
 
-def draw_pie(languages, name, legend):
-    languages = [[k, v] for k, v in languages.items()]
-    languages.sort(key=lambda i: -i[1])
-    print(languages)
-    labels = [item[0] for item in languages]
-    sizes = [item[1] for item in languages]
-    explode = [0 for i in range(len(labels))]
-    if len(explode) > 2:
-        explode[1] = 0.1
-
-    fig, ax = plt.subplots()
-
+def draw_pie(name_path, data, name, legend):
     def my_pct(i):
         if i > 5:
             return str(int(i * 10) / 10) + "%"
@@ -49,28 +48,31 @@ def draw_pie(languages, name, legend):
         else:
             return ""
 
+    data = sort_dict(data)
+    labels = [item[0] for item in data]
+    sizes = [item[1] for item in data]
+    explode = [0 for i in range(len(labels))]
+    if len(explode) > 2:
+        explode[1] = 0.1
+    fig, ax = plt.subplots()
     wedges, text, autotexts = ax.pie(sizes, explode=explode,
                                      labels=[my_label(i) for i in range(len(labels))],
                                      autopct=my_pct)
-
     for i in range(len(labels)):
         labels[i] += " (" + str(sizes[i]) + ")"
-
     if len(labels) > 5:
         labels = labels[0:5]
-
     ax.legend(wedges, labels,
-              title = legend,
-              bbox_to_anchor = (0.1, 0.1))
-
+              title=legend,
+              bbox_to_anchor=(0.3, 0.3))
     plt.setp(autotexts, size=10, weight="bold")
-
     ax.set_title(name)
+    plt.savefig('temp/{}.png'.format(name_path))
 
-    plt.show()
 
+def process_submits(name_path):
+    global verdicts, tags, languages, attempted, solved
 
-def ask_submits():
     link = api + "user.status?handle=" + profile['handle']
     response = call(link)
     if response['status'] != 'OK':
@@ -110,31 +112,20 @@ def ask_submits():
     attempted = list(dict.fromkeys(attempted))
     solved = list(dict.fromkeys(solved))
 
-    print("number of attempted tasks:", len(attempted))
-    print("number of solved tasks:", len(solved))
+    # print("number of attempted tasks:", len(attempted))
+    # print("number of solved tasks:", len(solved))
+    # print(tags)
+    # print(languages)
 
-    print(tags)
-
-    draw_pie(languages, "Language of submits statistics", "Programming languages")
-    draw_pie(tags, "Tasks statistics", "Tags")
-    draw_pie(verdicts, "Verdicts statistics", "Verdicts")
+    draw_pie("0" + name_path, languages, "Статистика по языкам программирования", "Языки программирования")
+    draw_pie("1" + name_path, tags, "Статистика по задачам", "Тэги")
+    draw_pie("2" + name_path, verdicts, "Статистика по вердиктам", "Вердикты")
 
     return response
 
 
-def ask_rate_diff():
-    link = api + "user.rating?handle=" + profile['handle']
-    response = call(link)
-    if response['status'] != 'OK':
-        print(response['comment'])
-        return
-    response = response['result']
-    return response
-
-
-with requests.Session() as cur_sess:
-    api = "http://codeforces.com/api/"
+def main(handle, name_path):
+    global last_call, profile
     last_call = time.time()
-    profile = ask_profile()
-    submits = ask_submits()
-    rate_diff = ask_rate_diff()
+    profile = call(api + "user.info?handles=" + handle)['result'][0]
+    process_submits(name_path)
