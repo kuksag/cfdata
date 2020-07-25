@@ -14,6 +14,13 @@ attempted = []
 solved = []
 
 
+def build_str(data):
+    result = ""
+    for item in data:
+        result += "{}: {}\n".format(item[0], item[1])
+    return result
+
+
 def sort_dict(data):
     temp = [[k, v] for k, v in data.items()]
     temp.sort(key=lambda i: -i[1])
@@ -112,14 +119,9 @@ def process_submits(name_path):
     attempted = list(dict.fromkeys(attempted))
     solved = list(dict.fromkeys(solved))
 
-    # print("number of attempted tasks:", len(attempted))
-    # print("number of solved tasks:", len(solved))
-    # print(tags)
-    # print(languages)
-
-    draw_pie("0" + name_path, languages, "Статистика по языкам программирования", "Языки программирования")
-    draw_pie("1" + name_path, tags, "Статистика по задачам", "Тэги")
-    draw_pie("2" + name_path, verdicts, "Статистика по вердиктам", "Вердикты")
+    draw_pie("languages" + name_path, languages, "Статистика по языкам программирования", "Языки программирования")
+    draw_pie("tags" + name_path, tags, "Статистика по задачам", "Тэги")
+    draw_pie("verdicts" + name_path, verdicts, "Статистика по вердиктам", "Вердикты")
 
     return response
 
@@ -129,3 +131,8 @@ def main(handle, name_path):
     last_call = time.time()
     profile = call(api + "user.info?handles=" + handle)['result'][0]
     process_submits(name_path)
+    return {"verdicts": sort_dict(verdicts),
+            "tags": sort_dict(tags),
+            "languages": sort_dict(languages),
+            "attempted": attempted,
+            "solved": solved}
