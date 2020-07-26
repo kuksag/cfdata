@@ -2,10 +2,8 @@
 # -*- coding: utf-8 -*-
 import telebot
 import main
-import time
-import os
 
-#@cfdata_bot
+# @cfdata_bot
 token = open("bot_data.txt", "r").readline()
 bot = telebot.TeleBot(token)
 
@@ -13,7 +11,7 @@ bot = telebot.TeleBot(token)
 @bot.message_handler(commands=['start'])
 def start_message(message):
     bot.send_message(message.chat.id, "Привет, напиши мне хэндл, например: kuksag или tourist\n"
-                                      "или /info для информации")
+                                      "\n/info для информации")
 
 
 @bot.message_handler(commands=['info'])
@@ -26,16 +24,30 @@ def start_message(message):
 @bot.message_handler(content_types=["text"])
 def begin_work(message):
     handle = message.text
-    if main.check_handle(handle) != 'OK':
-        bot.send_message(message.chat.id, main.check_handle(handle))
+    user = main.User(handle)
+
+    if user.profile is None:
+        bot.send_message(chat_id=message.chat.id, text='Хэндл "{}" не найден'.format(handle))
         return
-    name = str(handle) + str(int(time.time()))
-    data = main.main(handle, name)
-    for i in ["languages", "tags", "verdicts"]:
-        bot.send_photo(message.chat.id, open("temp/{}{}.png".format(i, name), 'rb'))
-        os.remove("temp/{}{}.png".format(i, name))
-        bot.send_message(message.chat.id, main.build_str(data[i]))
-    bot.send_message(message.chat.id, "Всего решалось задач: {}\n"
-                                      "Всего решено правильно: {}".format(len(data["attempted"]), len(data["solved"])))
+    if not user.build():
+        print("Что-то не так")
+        return
+
+    bot.send_photo(chat_id=message.chat.id,
+                   photo=main.draw_pie(user.languages, figure_name="Статистика по языкам программирования",
+                                       legend_name="Языки программирования"),
+                   caption=main.build_str(main.sort_dict(user.languages)))
+    bot.send_photo(chat_id=message.chat.id,
+                   photo=main.draw_pie(user.tags, figure_name="Статистика по задачам",
+                                       legend_name="Тэги"),
+                   caption=main.build_str(main.sort_dict(user.tags)))
+    bot.send_photo(chat_id=message.chat.id,
+                   photo=main.draw_pie(user.verdicts, figure_name="Статистика по вердиктам",
+                                       legend_name="Вердикты"),
+                   caption=main.build_str(main.sort_dict(user.verdicts)))
+    bot.send_message(chat_id=message.chat.id,
+                     text="Всего решалось задач: {}\nВсего решено правильно: {}".format(len(user.attempted),
+                                                                                        len(user.solved)))
+
 
 bot.polling()
